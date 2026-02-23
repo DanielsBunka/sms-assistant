@@ -1,0 +1,17 @@
+# Security
+.env
+
+# Virtual Environments
+venv/
+env/
+
+# Python Cache (Junk files)
+__pycache__/
+*.pyc
+
+# Local Databases (In case you add a SQLite database later)
+*.db
+*.sqlite3
+
+# OS Junk
+.DS_Store

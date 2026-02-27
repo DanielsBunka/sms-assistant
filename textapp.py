@@ -19,7 +19,10 @@ TRAIN_API = os.getenv("TRAIN_API")
 
 def grab_trains(from_crs, to_crs, from_name, to_name):
       api_url = f"https://api1.raildata.org.uk/1010-live-departure-board-dep1_2/LDBWS/api/20220120/GetDepartureBoard/{from_crs}"
-      apiheaders = { "x-apikey": TRAIN_API }
+      apiheaders = { 
+            "x-apikey": TRAIN_API,
+            "User-Agent": "SMSAssistantBot/1.0" 
+                    }
       api_parameters = {
             "numRows": 3,
             "filterCrs": to_crs,

@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from twilio.rest import Client
 from flask import Flask, request
@@ -17,44 +18,79 @@ TRAIN_API = os.getenv("TRAIN_API")
 # Main Train Data Grabbing Function
 #----------
 
+# Get Access Token Function
+def get_access_token():
+    url = "https://data.rtt.io/api/get_access_token"
+    headers = {
+        "Authorization": f"Bearer {TRAIN_API}",
+        "Accept": "application/json"
+    }
+    
+    response = requests.post(url, headers=headers)
+    if response.status_code != 200:
+        raise Exception(f"Failed to get access token: {response.status_code} {response.text}")
+    
+    data = response.json()
+    return data.get("access_token") or data.get("accessToken") or data.get("token")
+
+
 def grab_trains(from_crs, to_crs, from_name, to_name):
-      api_url = f"https://api1.raildata.org.uk/1010-live-departure-board-dep1_2/LDBWS/api/20220120/GetDepartureBoard/{from_crs}"
-      apiheaders = { 
-            "x-apikey": TRAIN_API,
-            "User-Agent": "SMSAssistantBot/1.0" 
-                    }
-      api_parameters = {
-            "numRows": 3,
-            "filterCrs": to_crs,
-            "filterType": "to",
-      }
-
       try:
-        apiresponse = requests.get(api_url, headers=apiheaders, params=api_parameters)
-        data = apiresponse.json()
-        filterdata = data.get('trainServices',[])
+            token = get_access_token()
 
-        if not filterdata:
-              return f"No trains found between {from_name} to {to_name} currently!"
-        
-        message = f"Train Journey: {from_name} to {to_name}: \n \n"
+            # API request data
+            url = "https://data.rtt.io/gb-nr/location" 
+            query_params = {
+                  "location": from_crs,
+                  "to": to_crs
+            }
+            headers = {
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/json",
+                  "Version": "2026-04-23"
+            }
 
-        # Loop through the 3 trains provided by the API
-        for train in filterdata:
-              leavetime = train.get('std')
-              status = train.get('etd')
-              platform = train.get('platform', 'TBC')
-              is_cancelled = train.get('isCancelled', False)
-              
-              if is_cancelled:
-                    message += f"❌ {leavetime} - CANCELLED \n\n"
-              else:
-                    message += f"✅ {leavetime} ({status}) - Platform {platform} \n \n"
+            # API request
+            response = requests.get(url,headers=headers, params=query_params)
+            data = response.json()
 
-        return message
+            services = data.get('services',[])
+            departures = [train for train in services if train.get("temporalData", {}).get("departure")]
+
+            if not departures:
+                  return f"No trains found between {from_name} to {to_name} currently!"
+            
+            message = f"Train Journey: {from_name} to {to_name}: \n \n"
+            
+            # Loop through the train services
+            for train in departures[:3]:
+                  
+                  # Get raw nested data
+                  departure_data = train.get("temporalData", {}).get("departure")
+                  raw_leavetime = departure_data.get("scheduleAdvertised")
+                  raw_status = departure_data.get("realtimeForecast")
+                  is_cancelled = departure_data.get("isCancelled", False)
+
+                  # Platform logic
+                  platform_data = train.get("locationMetadata", {}).get("platform", {})
+                  platform = platform_data.get("actual") or platform_data.get("forecast") or platform_data.get("planned") or "TBC"
+
+                  # Format times
+                  leavetime = raw_leavetime.split("T")[1][:5] if raw_leavetime else "N/A"
+                  status = raw_status.split("T")[1][:5] if raw_status else "On Time"
+
+                  if is_cancelled:
+                        message += f"❌ {leavetime} - CANCELLED \n\n"
+                  else:
+                        message += f"✅ {leavetime} (Exp: {status}) - Platform {platform} \n\n"
+                  
+            return message
       
       except Exception as e:
-            return "⚠️ Error: Couldn't connect to the Official National Rail API"
+            print(f"Train fetch failed: {e}")
+            return "⚠️ Error: Couldn't connect to the Realtime Trains API"
+
+
         
 #----------
 # Unprompted Send Function

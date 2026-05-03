@@ -43,7 +43,6 @@ def grab_trains(from_crs, to_crs, from_name, to_name):
             url = "https://data.rtt.io/gb-nr/location" 
             query_params = {
                   "location": from_crs,
-                  "to": to_crs
             }
             headers = {
                   "Authorization": f"Bearer {token}",
@@ -56,7 +55,15 @@ def grab_trains(from_crs, to_crs, from_name, to_name):
             data = response.json()
 
             services = data.get('services',[])
-            departures = [train for train in services if train.get("temporalData", {}).get("departure")]
+
+            departures = [
+            train for train in services
+            if train.get("temporalData", {}).get("departure")
+            and any(
+                  to_crs in loc.get("location", {}).get("longCodes", [])
+                  for loc in train.get("destination", [])
+                  )
+            ]
 
             if not departures:
                   return f"No trains found between {from_name} to {to_name} currently!"
@@ -195,11 +202,11 @@ def command_reply():
             if len(split_request) > 1:
                   route = split_request[1]
                   if route == 'default':
-                        trainrequest = grab_trains('SOP', 'LVC', 'Southport', 'Liverpool Central')
+                        trainrequest = grab_trains('SOP', 'LVRPLCH', 'Southport', 'Liverpool Central')
                   elif route == 'liverpool':
-                        trainrequest = grab_trains('LVC', 'SOP', 'Liverpool Central', 'Southport')
+                        trainrequest = grab_trains('LVC', 'SOUTHPT', 'Liverpool Central', 'Southport')
                   elif route == 'moorfields':
-                        trainrequest = grab_trains('MRV', 'SOP', 'Moorfields', 'Southport')
+                        trainrequest = grab_trains('MRF', 'SOUTHPT', 'Moorfields', 'Southport')
                   else:
                         trainrequest = '❌ No Valid Route Input! \n Input a Route with the .train command'
             else:

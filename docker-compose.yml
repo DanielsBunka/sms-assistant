@@ -1,10 +1,14 @@
 version: '3.8'
 services:
   sms-assistant:
-    build: .
+    image: python:3.11-slim
     container_name: sms-assistant
     restart: unless-stopped
     ports:
       - "5000:5000"
+    env_file:
+      - /DATA/AppData/sms-assistant/.env
     volumes:
       - /DATA/AppData/sms-assistant:/app
+    working_dir: /app
+    command: ["/bin/sh", "-c", "pip install --no-cache-dir -r requirements.txt && python textapp.py"]

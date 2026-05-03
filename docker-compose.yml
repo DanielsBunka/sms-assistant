@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  sms-assistant:
+    build: .
+    container_name: sms-assistant
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - /DATA/AppData/sms-assistant:/app

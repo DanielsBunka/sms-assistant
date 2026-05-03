@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from twilio.rest import Client
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
+import yfinance as yf
 
 # Load up all the variables from .env file
 load_dotenv()
@@ -81,7 +82,7 @@ def grab_stocks(ticker=None):
       else:
             portfolio = {
             "S&P 500": "^GSPC",
-            "FTSE 100": "^FTSE",
+            "Google": "GOOGL",
             "Apple": "AAPL",
             "Microsoft": "MSFT"
         }
@@ -167,6 +168,14 @@ def command_reply():
             else:
                   trainrequest = '❌ No Valid Route Input! \n Input a Route with the .train command'
             resp.message(trainrequest)
+    elif command == '.stock':
+          if len(split_request) > 1:
+                stockchoice = split_request[1]
+                resp.message(grab_stocks(stockchoice))
+          else:
+                resp.message(grab_stocks())
+      
+          
     else:
             resp.message("Unrecognised command texted! Try Again!")
 

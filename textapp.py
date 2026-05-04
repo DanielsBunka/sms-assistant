@@ -1,11 +1,12 @@
 import os
-import requests
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from twilio.rest import Client
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-import yfinance as yf
+
+# Services Imports
+from services.trains import grab_trains
+from services.stocks import grab_stocks
 
 # Load up all the variables from .env file
 load_dotenv()
@@ -15,165 +16,35 @@ TWILIO_PHONE = os.getenv("TWILIO_PHONE")
 PERSONAL_PHONE = os.getenv("PERSONAL_PHONE")
 TRAIN_API = os.getenv("TRAIN_API")
 
-#----------
-# Main Train Data Grabbing Function
-#----------
 
-# Get Access Token Function
-def get_access_token():
-    url = "https://data.rtt.io/api/get_access_token"
-    headers = {
-        "Authorization": f"Bearer {TRAIN_API}",
-        "Accept": "application/json"
-    }
-    
-    response = requests.post(url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to get access token: {response.status_code} {response.text}")
-    
-    data = response.json()
-    return data.get("access_token") or data.get("accessToken") or data.get("token")
-
-
-def grab_trains(from_crs, to_crs, from_name, to_name):
-      try:
-            token = get_access_token()
-
-            # API request data
-            url = "https://data.rtt.io/gb-nr/location" 
-            query_params = {
-                  "location": from_crs,
-                  "filterTo": f"gb-nr:{to_crs}",
-                  "timeWindow": 120
-            }
-            headers = {
-                  "Authorization": f"Bearer {token}",
-                  "Accept": "application/json",
-                  "Version": "2026-04-23"
-            }
-
-            # API request
-            response = requests.get(url,headers=headers, params=query_params)
-            data = response.json()
-
-            services = data.get('services',[])
-
-            departures = [train for train in services if train.get("temporalData", {}).get("departure")]
-
-            if not departures:
-                  return f"No trains found between {from_name} to {to_name} currently!"
-            
-            message = f"Train Journey: {from_name} to {to_name}: \n \n"
-            
-            # Loop through the train services
-            for train in departures[:3]:
-                  
-                  # Get raw nested data
-                  departure_data = train.get("temporalData", {}).get("departure")
-                  raw_leavetime = departure_data.get("scheduleAdvertised")
-                  raw_status = departure_data.get("realtimeForecast")
-                  is_cancelled = departure_data.get("isCancelled", False)
-
-                  # Platform logic
-                  platform_data = train.get("locationMetadata", {}).get("platform", {})
-                  platform = platform_data.get("actual") or platform_data.get("forecast") or platform_data.get("planned") or "TBC"
-
-                  # Format times
-                  leavetime = raw_leavetime.split("T")[1][:5] if raw_leavetime else "N/A"
-                  status = raw_status.split("T")[1][:5] if raw_status else "On Time"
-
-                  if is_cancelled:
-                        message += f"❌ {leavetime} - CANCELLED \n\n"
-                  else:
-                        message += f"✅ {leavetime} (Exp: {status}) - Platform {platform} \n\n"
-                  
-            return message
-      
-      except Exception as e:
-            print(f"Train fetch failed: {e}")
-            return "⚠️ Error: Couldn't connect to the Realtime Trains API"
-
-
-        
-#----------
+# ----------
 # Unprompted Send Function
-#----------
+# ----------
 def instant_send(textbody):
-      client = Client(TWILIO_SID, TWILIO_TOKEN)
-      
-      message = client.messages.create(
-            body=textbody,
-            from_=TWILIO_PHONE,
-            to=PERSONAL_PHONE
-      )
+    client = Client(TWILIO_SID, TWILIO_TOKEN)
 
-      print("Unprompted message sent! \n Message ID: " + message.sid )
+    message = client.messages.create(
+        body=textbody, from_=TWILIO_PHONE, to=PERSONAL_PHONE
+    )
 
-#----------
-# Stocks
-#----------
-def grab_stocks(ticker=None):
-      message = "Stock Info: \n \n"
-
-      if ticker:
-            ticker_search = ticker.upper()
-            portfolio = {ticker_search:ticker_search}
-      else:
-            portfolio = {
-            "S&P 500": "^GSPC",
-            "Google": "GOOGL",
-            "Apple": "AAPL",
-            "Microsoft": "MSFT"
-        }
-
-      # Loop through the portfolio      
-      try:
-            for name, symbol in portfolio.items():
-                  stock = yf.Ticker(symbol)
-                  # Grab 2 days of trading data - for comparision (need percentages)
-                  recent_data = stock.history(period='2d')
-
-                  # Check if we have 2 days of data
-                  if len(recent_data) >= 2:
-                        previous_close = recent_data['Close'].iloc[0]
-                        current_price = recent_data['Close'].iloc[1]
-
-                        # Calculate the percentage
-                        percent_change = ((current_price - previous_close) / previous_close) * 100
-
-                        # Set up the emojis and +/- signs
-                        sign = "+" if percent_change > 0 else ""
-                        emoji = "🟢" if percent_change > 0 else "🔴" if percent_change < 0 else "⚪"
-
-                        message += f"{emoji} {name}: {sign}{percent_change:.2f}% \n\n"
-                  else:
-                        # If the data is not found or is missing
-                        message += f"🔹 {name}: Data Unavailable (Invalid Ticker?) \n\n"
-
-            return message
-
-      except Exception as e:
-            print(f"Stock error: {e}")
-            return "⚠️ Error: Couldn't fetch the stock market data."
+    print("Unprompted message sent! \n Message ID: " + message.sid)
 
 
-            
-
-          
-#----------
+# ----------
 # Webhook Listening Part
-#----------
+# ----------
 # Starts the Flask web framework
 app = Flask(__name__)
+
 
 # This opens a webpage that ends with with /sms
 # Tells it to expect data - a POST request
 # app.route connects it to the listen_reply function
-@app.route("/sms", methods=['POST'])
+@app.route("/sms", methods=["POST"])
 def command_reply():
-    
+
     # Reads the request that Twilio sent
-    incoming_request = request.values.get('Body','').lower().strip()
+    incoming_request = request.values.get("Body", "").lower().strip()
     print("Message arrived " + incoming_request)
 
     # To be able to seperate command fields - 1st word = command, 2nd word = destination
@@ -182,48 +53,50 @@ def command_reply():
     # Needed to be able to send a request back to Twilio
     resp = MessagingResponse()
 
-    # Necessary so a empty message doesn't break the code    
+    # Necessary so a empty message doesn't break the code
     if not split_request:
-          return str(resp)
-    
+        return str(resp)
+
     # Makes it more readable - First word in message is the command
     command = split_request[0]
 
     # Menu
-    if command == '.ping':
+    match command:
+
+        case ".ping":
             resp.message("Pong! The connection works!")
-    elif command == '.train':
+
+        # Trains
+        case ".train":
             # Checks if there is a 2nd word in the message
             if len(split_request) > 1:
-                  route = split_request[1]
-                  if route == 'default':
-                        trainrequest = grab_trains('SOP', 'LVC', 'Southport', 'Liverpool Central')
-                  elif route == 'liverpool':
-                        trainrequest = grab_trains('LVC', 'SOP', 'Liverpool Central', 'Southport')
-                  elif route == 'moorfields':
-                        trainrequest = grab_trains('MRF', 'SOP', 'Moorfields', 'Southport')
-                  else:
-                        trainrequest = '❌ No Valid Route Input! \n Input a Route with the .train command'
+                route = split_request[1]
+                if route == "default":
+                    trainrequest = grab_trains("SOP", "LVC", "Southport", "Liverpool Central", TRAIN_API)
+                elif route == "liverpool":
+                    trainrequest = grab_trains("LVC", "SOP", "Liverpool Central", "Southport", TRAIN_API)
+                elif route == "moorfields":
+                    trainrequest = grab_trains("MRF", "SOP", "Moorfields", "Southport", TRAIN_API)
+                else:
+                    trainrequest = "❌ No Valid Route Input! \n Input a Route with the .train command"
             else:
-                  trainrequest = '❌ No Valid Route Input! \n Input a Route with the .train command'
+                trainrequest = ("❌ No Valid Route Input! \n Input a Route with the .train command")
+
             resp.message(trainrequest)
-    elif command == '.stock':
-          if len(split_request) > 1:
+
+        # Stocks
+        case ".stock":
+            if len(split_request) > 1:
                 stockchoice = split_request[1]
                 resp.message(grab_stocks(stockchoice))
-          else:
+            else:
                 resp.message(grab_stocks())
-      
-          
-    else:
+
+        case _:
             resp.message("Unrecognised command texted! Try Again!")
 
     return str(resp)
 
 
-
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0',port=5000)
-
-    
+    app.run(host="0.0.0.0", port=5000)

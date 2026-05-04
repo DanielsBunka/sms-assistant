@@ -61,9 +61,14 @@ def command_reply():
     command = split_request[0]
 
     # Menu
-    if command == '.ping':
+
+    match command:
+
+     case '.ping':
             resp.message("Pong! The connection works!")
-    elif command == '.train':
+
+      # Trains
+     case '.train':
             # Checks if there is a 2nd word in the message
             if len(split_request) > 1:
                   route = split_request[1]
@@ -78,7 +83,9 @@ def command_reply():
             else:
                   trainrequest = '❌ No Valid Route Input! \n Input a Route with the .train command'
             resp.message(trainrequest)
-    elif command == '.stock':
+
+      #Stocks
+     case '.stock':
           if len(split_request) > 1:
                 stockchoice = split_request[1]
                 resp.message(grab_stocks(stockchoice))
@@ -86,7 +93,7 @@ def command_reply():
                 resp.message(grab_stocks())
       
           
-    else:
+     case _:
             resp.message("Unrecognised command texted! Try Again!")
 
     return str(resp)

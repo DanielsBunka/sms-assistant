@@ -12,7 +12,7 @@ def grab_stocks(ticker=None):
             "Google": "GOOGL",
             "Apple": "AAPL",
             "Microsoft": "MSFT"
-        }
+      }
 
       # Loop through the portfolio      
       try:

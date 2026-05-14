@@ -24,7 +24,7 @@ def grab_trains(from_crs, to_crs, from_name, to_name, api_key):
             url = "https://data.rtt.io/gb-nr/location" 
             query_params = {
                   "location": from_crs,
-                  "filterTo": f"gb-nr:{to_crs}",
+                  "filterTo": to_crs,
                   "timeWindow": 120
             }
             headers = {

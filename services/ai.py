@@ -15,7 +15,9 @@ def ask_ai(prompt, phone_number, client):
 
     # Create new list if first message from this phone number
     if phone_number not in conversation_history:
-        conversation_history[phone_number] = []
+        conversation_history[phone_number] = [
+            {"role": "system", "content": system_prompt}
+        ]
 
     conversation_history[phone_number].append({
         "role": "user",
@@ -25,7 +27,6 @@ def ask_ai(prompt, phone_number, client):
     response = client.chat.completions.create(
         model="google/gemini-3.1-flash-lite",
         max_tokens=400,
-        system=system_prompt,
         messages=conversation_history[phone_number],
         tools=tools
     )
@@ -38,7 +39,7 @@ def ask_ai(prompt, phone_number, client):
     })
     
     if len(conversation_history[phone_number]) > max_history:
-        conversation_history[phone_number] = conversation_history[phone_number][-max_history:]
+        conversation_history[phone_number] = [conversation_history[phone_number][0]] + conversation_history[phone_number][-(max_history - 1):]
 
     return AI_response
 

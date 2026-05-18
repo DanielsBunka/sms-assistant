@@ -1,4 +1,5 @@
 import os
+import threading
 from dotenv import load_dotenv
 from twilio.rest import Client
 from flask import Flask, request
@@ -31,11 +32,11 @@ AI_client = OpenAI(
 # ----------
 # Unprompted Send Function
 # ----------
-def instant_send(textbody):
+def instant_send(textbody, phonenumber):
     client = Client(TWILIO_SID, TWILIO_TOKEN)
 
     message = client.messages.create(
-        body=textbody, from_=TWILIO_PHONE, to=PERSONAL_PHONE
+        body=textbody, from_=TWILIO_PHONE, to=phonenumber
     )
 
     print("Unprompted message sent! \n Message ID: " + message.sid)
@@ -113,7 +114,14 @@ def command_reply():
                     resp.message(clear_history(sender_number))
                 else:
                     question = " ".join(split_request[1:])
-                    resp.message(ask_ai(question,sender_number,AI_client))
+                    
+                    def ai_threading_task():
+                        ai_answer = ask_ai(question, sender_number, AI_client)
+                        instant_send(ai_answer, sender_number)
+
+                    thread = threading.Thread(target=ai_threading_task)
+                    thread.start()
+                    
             else:
                 resp.message(".ai has no command after it")
 

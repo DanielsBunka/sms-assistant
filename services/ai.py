@@ -27,8 +27,9 @@ def ask_ai(prompt, phone_number, client):
     response = client.chat.completions.create(
         model="google/gemini-3.1-flash-lite",
         max_tokens=400,
-        messages=conversation_history[phone_number],
-        tools=tools
+        messages=conversation_history[phone_number]
+        #tools=tools
+        # Removed due to twilio latency limitations, the tools would take too long to formulate a response
     )
 
     AI_response = response.choices[0].message.content

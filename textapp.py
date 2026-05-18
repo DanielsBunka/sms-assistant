@@ -7,6 +7,10 @@ from twilio.twiml.messaging_response import MessagingResponse
 # Services Imports
 from services.trains import grab_trains
 from services.stocks import grab_stocks
+from services.ai import ask_ai, clear_history
+
+# AI Import
+from openai import OpenAI
 
 # Load up all the variables from .env file
 load_dotenv()
@@ -15,6 +19,13 @@ TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_PHONE = os.getenv("TWILIO_PHONE")
 PERSONAL_PHONE = os.getenv("PERSONAL_PHONE")
 TRAIN_API = os.getenv("TRAIN_API")
+AI_API = os.getenv("AI_API")
+
+# AI Client
+AI_client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=AI_API
+)
 
 
 # ----------
@@ -45,6 +56,7 @@ def command_reply():
 
     # Reads the request that Twilio sent
     incoming_request = request.values.get("Body", "").lower().strip()
+    sender_number = request.values.get("From", "unknown")
     print("Message arrived " + incoming_request)
 
     # To be able to seperate command fields - 1st word = command, 2nd word = destination
@@ -92,8 +104,21 @@ def command_reply():
             else:
                 resp.message(grab_stocks())
 
+        case ".phone" | ".number":
+            resp.message(f"Your phone number is {sender_number}")
+
+        case ".ai":
+            if len(split_request) > 1:
+                if split_request[1] == "clear":
+                    resp.message(clear_history(sender_number))
+                else:
+                    question = " ".join(split_request[1:])
+                    resp.message(ask_ai(question,sender_number,AI_client))
+            else:
+                resp.message(".ai has no command after it")
+
         case _:
-            resp.message("Unrecognised command texted! Try Again!")
+            resp.message("Unrecognised command texted! Try Again! \n Commands: \n .ping \n .train \n .stock \n .ai \n .phone")
 
     return str(resp)
 

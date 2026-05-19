@@ -2,7 +2,7 @@ from openai import OpenAI
 
 conversation_history = {}
 max_history = 20
-system_prompt = ""
+system_prompt = "You are a personal assistant inside an SMS bot. Use plain text only — no bold, no markdown. For conversational questions, keep answers to 1-3 sentences. For data like times, lists, or schedules, format clearly across multiple lines."
 
 tools = [
     {"type": "web_search"},
@@ -26,7 +26,7 @@ def ask_ai(prompt, phone_number, client):
 
     response = client.chat.completions.create(
         model="google/gemini-3.1-flash-lite",
-        max_tokens=400,
+        max_tokens=350,
         messages=conversation_history[phone_number],
         tools=tools
     )

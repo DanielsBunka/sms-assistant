@@ -28,8 +28,7 @@ def ask_ai(prompt, phone_number, client):
         model="google/gemini-3.1-flash-lite",
         max_tokens=350,
         messages=conversation_history[phone_number]
-        #tools=tools
-        # No tool calling since it introduces problems, will introduce later
+        tools=tools
     )
 
     AI_response = response.choices[0].message.content

@@ -27,7 +27,7 @@ def ask_ai(prompt, phone_number, client):
     response = client.chat.completions.create(
         model="google/gemini-3.1-flash-lite",
         max_tokens=350,
-        messages=conversation_history[phone_number]
+        messages=conversation_history[phone_number],
         tools=tools
     )
 

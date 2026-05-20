@@ -2,7 +2,7 @@ import os
 import threading
 from dotenv import load_dotenv
 from twilio.rest import Client
-from flask import Flask, request
+from flask import Flask, request, copy_current_request_context
 from twilio.twiml.messaging_response import MessagingResponse
 
 # Services Imports
@@ -115,12 +115,15 @@ def command_reply():
                 else:
                     question = " ".join(split_request[1:])
                     
+                    @copy_current_request_context
                     def ai_threading_task():
                         ai_answer = ask_ai(question, sender_number, AI_client)
                         instant_send(ai_answer, sender_number)
 
                     thread = threading.Thread(target=ai_threading_task)
                     thread.start()
+
+                    return "",200
                     
             else:
                 resp.message(".ai has no command after it")

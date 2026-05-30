@@ -94,9 +94,9 @@ def command_reply():
                 elif route == "moorfields":
                     trainrequest = grab_trains("MRF", "SOP", "Moorfields", "Southport", TRAIN_API)
                 else:
-                    trainrequest = "❌ No Valid Route Input! \n Input a Route with the .train command"
+                    trainrequest = "No Valid Route Input! \n Input a Route with the .train command"
             else:
-                trainrequest = ("❌ No Valid Route Input! \n Input a Route with the .train command")
+                trainrequest = ("No Valid Route Input! \n Input a Route with the .train command")
 
             resp.message(trainrequest)
             saveMessageDatabase(sender_number, incoming_request, command, trainrequest)

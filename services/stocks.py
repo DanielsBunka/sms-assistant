@@ -33,13 +33,13 @@ def grab_stocks(ticker=None):
                         sign = "+" if percent_change > 0 else ""
                         emoji = "🟢" if percent_change > 0 else "🔴" if percent_change < 0 else "⚪"
 
-                        message += f"{emoji} {name}: {sign}{percent_change:.2f}% \n\n"
+                        message += f"{name}: {sign}{percent_change:.2f}% \n"
                   else:
                         # If the data is not found or is missing
-                        message += f"🔹 {name}: Data Unavailable (Invalid Ticker?) \n\n"
+                        message += f"{name}: Data Unavailable (Invalid Ticker?) \n"
 
             return message
 
       except Exception as e:
             print(f"Stock error: {e}")
-            return "⚠️ Error: Couldn't fetch the stock market data."
+            return "Error: Couldn't fetch the stock market data."

@@ -23,8 +23,11 @@ def ask_ai(prompt, phone_number, client):
     # Create new list if first message from this phone number
     if phone_number not in conversation_history:
         conversation_history[phone_number] = [
-            {"role": "system", "content": system_prompt}
+            {"role": "system", "content": timed_system_prompt}
         ]
+    else:
+        # Need to update system prompt within conversation history as the AI retrieves it from conversation history
+        conversation_history[phone_number][0]["content"] = timed_system_prompt
 
     conversation_history[phone_number].append({
         "role": "user",

@@ -64,7 +64,7 @@ def grab_trains(from_crs, to_crs, from_name, to_name, api_key):
                   status = raw_status.split("T")[1][:5] if raw_status else "On Time"
 
                   if is_cancelled:
-                        message += f"leavetime} - CANCELLED \n\n"
+                        message += f"{leavetime} - CANCELLED \n\n"
                   else:
                         message += f"{leavetime} (Exp: {status}) - Platform {platform} \n\n"
                   

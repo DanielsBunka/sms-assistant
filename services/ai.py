@@ -1,4 +1,6 @@
 from openai import OpenAI
+from datetime import datetime
+
 
 conversation_history = {}
 max_history = 20
@@ -12,6 +14,11 @@ tools = [
 
 
 def ask_ai(prompt, phone_number, client):
+    # Has to be inside function so it calls a new time everytime
+    current_time = datetime.now().strftime("%A, %B %d, %Y %I:%M %p")
+
+    # Has to be inside function so that time gets updated
+    timed_system_prompt =  f"{system_prompt} The current date and time is {current_time}."
 
     # Create new list if first message from this phone number
     if phone_number not in conversation_history:

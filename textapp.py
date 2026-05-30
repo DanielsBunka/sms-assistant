@@ -9,6 +9,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 from services.trains import grab_trains
 from services.stocks import grab_stocks
 from services.ai import ask_ai, clear_history
+from services.database import startDatabase, saveMessageDatabase
 
 # AI Import
 from openai import OpenAI
@@ -46,6 +47,7 @@ def instant_send(textbody, phonenumber):
 # Webhook Listening Part
 # ----------
 # Starts the Flask web framework
+startDatabase()
 app = Flask(__name__)
 
 
@@ -78,6 +80,7 @@ def command_reply():
 
         case ".ping":
             resp.message("Pong! The connection works!")
+            saveMessageDatabase(sender_number, incoming_request, command, "Pong! The connection works!")
 
         # Trains
         case ".train":
@@ -96,22 +99,28 @@ def command_reply():
                 trainrequest = ("❌ No Valid Route Input! \n Input a Route with the .train command")
 
             resp.message(trainrequest)
+            saveMessageDatabase(sender_number, incoming_request, command, trainrequest)
 
         # Stocks
         case ".stock":
             if len(split_request) > 1:
-                stockchoice = split_request[1]
-                resp.message(grab_stocks(stockchoice))
+                stockresponse = grab_stocks(split_request[1])
             else:
-                resp.message(grab_stocks())
+                stockresponse = grab_stocks()
+            resp.message(stockresponse)
+            saveMessageDatabase(sender_number, incoming_request, command, stockresponse)
 
         case ".phone" | ".number":
-            resp.message(f"Your phone number is {sender_number}")
+            response_text = f"Your phone number is {sender_number}"
+            resp.message(response_text)
+            saveMessageDatabase(sender_number, incoming_request, command, response_text)
 
         case ".ai":
             if len(split_request) > 1:
                 if split_request[1] == "clear":
-                    resp.message(clear_history(sender_number))
+                    response_text = clear_history(sender_number)
+                    resp.message(response_text)
+                    saveMessageDatabase(sender_number, incoming_request, command, response_text)
                 else:
                     question = " ".join(split_request[1:])
                     
@@ -119,6 +128,7 @@ def command_reply():
                     def ai_threading_task():
                         ai_answer = ask_ai(question, sender_number, AI_client)
                         instant_send(ai_answer, sender_number)
+                        saveMessageDatabase(sender_number, incoming_request, ".ai", ai_answer)
 
                     thread = threading.Thread(target=ai_threading_task)
                     thread.start()
@@ -126,10 +136,14 @@ def command_reply():
                     return "",200
                     
             else:
-                resp.message(".ai has no command after it")
+                response_text = ".ai has no command after it"
+                resp.message(response_text)
+                saveMessageDatabase(sender_number, incoming_request, command, response_text)
 
         case _:
-            resp.message("Unrecognised command texted! Try Again! \n Commands: \n .ping \n .train \n .stock \n .ai \n .phone")
+            response_text = "Unrecognised command! Try Again! \n Commands: \n .ping \n .train \n .stock \n .ai \n .phone"
+            resp.message(response_text)
+            saveMessageDatabase(sender_number, incoming_request, response=response_text)
 
     return str(resp)
 

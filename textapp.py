@@ -23,6 +23,9 @@ PERSONAL_PHONE = os.getenv("PERSONAL_PHONE")
 TRAIN_API = os.getenv("TRAIN_API")
 AI_API = os.getenv("AI_API")
 
+if not PERSONAL_PHONE:
+    raise RuntimeError("PERSONAL_PHONE must be set")
+
 # AI Client
 AI_client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -57,9 +60,15 @@ app = Flask(__name__)
 @app.route("/sms", methods=["POST"])
 def command_reply():
 
-    # Reads the request that Twilio sent
-    incoming_request = request.values.get("Body", "").lower().strip()
     sender_number = request.values.get("From", "unknown")
+
+    # Only the configured number may use the assistant.
+    if sender_number != PERSONAL_PHONE:
+        print("Rejected SMS: unauthorised sender")
+        return str(MessagingResponse())
+
+    # Read the message only after checking the sender.
+    incoming_request = request.values.get("Body", "").lower().strip()
     print("Message arrived " + incoming_request)
 
     # To be able to seperate command fields - 1st word = command, 2nd word = destination
